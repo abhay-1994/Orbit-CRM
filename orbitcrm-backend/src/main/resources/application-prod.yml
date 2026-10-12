@@ -1,0 +1,24 @@
+# Production profile: structured JSON logs, no API explorer, secrets required from the environment.
+orbitcrm:
+  security:
+    jwt:
+      secret: ${ORBITCRM_JWT_SECRET}
+    encryption-key: ${ORBITCRM_ENCRYPTION_KEY}
+    refresh-cookie:
+      secure: true
+
+# Actuator on a separate port that is not exposed publicly (scraped by Prometheus inside the network).
+management:
+  server:
+    port: ${ORBITCRM_MANAGEMENT_PORT:8081}
+
+logging:
+  structured:
+    format:
+      console: ecs
+
+springdoc:
+  api-docs:
+    enabled: ${ORBITCRM_API_DOCS_ENABLED:false}
+  swagger-ui:
+    enabled: ${ORBITCRM_API_DOCS_ENABLED:false}

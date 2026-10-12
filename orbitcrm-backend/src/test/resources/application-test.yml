@@ -1,0 +1,28 @@
+spring:
+  flyway:
+    locations: classpath:db/migration,classpath:db/test-migration
+
+orbitcrm:
+  security:
+    session:
+      # Strict reuse detection in tests; the concurrent-tab leeway is covered by its own test.
+      refresh-reuse-leeway: 0s
+    login:
+      ip-max-attempts: 100000
+    principal-cache-ttl: 30s
+  storage:
+    type: local
+    local-path: ${java.io.tmpdir}/orbitcrm-test-storage
+  # Jobs are invoked directly by tests instead of on a timer.
+  jobs:
+    enabled: false
+  # Every test calls from the same IP; the limiter itself is unit-tested.
+  rate-limit:
+    enabled: true
+    authenticated-per-minute: 100000
+    anonymous-per-minute: 100000
+
+logging:
+  level:
+    com.orbitcrm: DEBUG
+    org.testcontainers: WARN

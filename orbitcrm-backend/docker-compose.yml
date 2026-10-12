@@ -1,0 +1,56 @@
+# Local development for the OrbitCRM backend.
+#   docker compose up -d                 -> PostgreSQL + Mailpit; run the API from your IDE or `mvn spring-boot:run`
+#   docker compose --profile app up -d   -> also builds and runs the API container on http://localhost:8080
+name: orbitcrm
+
+services:
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: orbitcrm
+      POSTGRES_USER: orbitcrm
+      POSTGRES_PASSWORD: orbitcrm
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U orbitcrm -d orbitcrm"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Catches every outgoing email (invites, password resets). UI: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
+  api:
+    profiles: ["app"]
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ORBITCRM_DB_URL: jdbc:postgresql://postgres:5432/orbitcrm
+      ORBITCRM_DB_ADMIN_USER: orbitcrm
+      ORBITCRM_DB_ADMIN_PASSWORD: orbitcrm
+      ORBITCRM_DB_APP_PASSWORD: orbitcrm_app_dev
+      # Development values only - generate real ones for any shared environment:
+      #   openssl rand -base64 48 (JWT)  /  openssl rand -base64 32 (encryption key)
+      ORBITCRM_JWT_SECRET: b3JiaXRjcm0tbG9jYWwtZGV2ZWxvcG1lbnQtc2VjcmV0LWNoYW5nZS1tZQ==
+      ORBITCRM_ENCRYPTION_KEY: b3JiaXRjcm0tZGV2LWVuY3J5cHRpb24ta2V5LTMyYnk=
+      ORBITCRM_COOKIE_SECURE: "false"
+      ORBITCRM_API_DOCS_ENABLED: "true"
+      SPRING_MAIL_HOST: mailpit
+      SPRING_MAIL_PORT: 1025
+    ports:
+      - "8080:8080"
+    volumes:
+      - storage:/data/storage
+
+volumes:
+  pgdata:
+  storage:

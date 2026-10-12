@@ -1,0 +1,140 @@
+spring:
+  application:
+    name: orbitcrm-backend
+  threads:
+    virtual:
+      enabled: true
+
+  # The application connects as a restricted, non-owner role so PostgreSQL row-level security applies.
+  datasource:
+    url: ${ORBITCRM_DB_URL:jdbc:postgresql://localhost:5432/orbitcrm}
+    username: ${ORBITCRM_DB_APP_USER:orbitcrm_app}
+    password: ${ORBITCRM_DB_APP_PASSWORD:orbitcrm_app_dev}
+    hikari:
+      maximum-pool-size: ${ORBITCRM_DB_POOL_SIZE:20}
+      pool-name: orbitcrm-pool
+      # Guard rail: no single statement (e.g. a heavy ad-hoc aggregation) may run away with a connection.
+      connection-init-sql: SET statement_timeout = '30s'
+
+  # Migrations run as the schema owner; they also create the restricted application role.
+  flyway:
+    url: ${spring.datasource.url}
+    user: ${ORBITCRM_DB_ADMIN_USER:orbitcrm}
+    password: ${ORBITCRM_DB_ADMIN_PASSWORD:orbitcrm}
+    locations: classpath:db/migration
+    placeholders:
+      app_db_user: ${spring.datasource.username}
+      app_db_password: ${spring.datasource.password}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  servlet:
+    multipart:
+      max-file-size: 25MB
+      max-request-size: 26MB
+
+server:
+  port: ${PORT:8080}
+  shutdown: graceful
+  forward-headers-strategy: native
+  error:
+    include-stacktrace: never
+    include-message: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: never
+  health:
+    # Email is sent asynchronously and failures are logged; an SMTP outage must not mark the API unhealthy
+    # (readiness probes would otherwise take every instance out of rotation).
+    mail:
+      enabled: false
+  info:
+    env:
+      enabled: true
+
+info:
+  app:
+    name: OrbitCRM Backend
+    version: '@project.version@'
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: alpha
+    tags-sorter: alpha
+
+logging:
+  level:
+    root: INFO
+    com.orbitcrm: INFO
+  pattern:
+    correlation: '[%X{requestId:-}] [t:%X{tenantId:-}] [u:%X{userId:-}] '
+
+orbitcrm:
+  version: '@project.version@'
+  security:
+    jwt:
+      issuer: ${ORBITCRM_JWT_ISSUER:orbitcrm}
+      # Base64, >= 32 bytes. The default is for local development only; production must override it.
+      secret: ${ORBITCRM_JWT_SECRET:b3JiaXRjcm0tbG9jYWwtZGV2ZWxvcG1lbnQtc2VjcmV0LWNoYW5nZS1tZQ==}
+      access-token-ttl: 15m
+      mfa-token-ttl: 5m
+    session:
+      refresh-token-ttl: 7d
+      absolute-ttl: 30d
+      refresh-reuse-leeway: 30s
+      invite-ttl: 7d
+      password-reset-ttl: 1h
+    refresh-cookie:
+      name: orbitcrm_refresh
+      secure: ${ORBITCRM_COOKIE_SECURE:true}
+      same-site: Strict
+      path: /api/v1/auth
+    login:
+      max-failed-attempts: 5
+      lock-duration: 15m
+      ip-max-attempts: 30
+      ip-window: 10m
+    # Base64 32-byte AES key for secrets at rest (MFA seeds). Local development default only.
+    encryption-key: ${ORBITCRM_ENCRYPTION_KEY:b3JiaXRjcm0tZGV2LWVuY3J5cHRpb24ta2V5LTMyYnk=}
+    principal-cache-ttl: 30s
+  web:
+    cors-allowed-origins: ${ORBITCRM_CORS_ORIGINS:http://localhost:5173}
+    frontend-base-url: ${ORBITCRM_FRONTEND_URL:http://localhost:5173}
+  mail:
+    from: ${ORBITCRM_MAIL_FROM:OrbitCRM <no-reply@orbitcrm.local>}
+    log-body: false
+  storage:
+    type: ${ORBITCRM_STORAGE_TYPE:local}          # local | s3
+    local-path: ${ORBITCRM_STORAGE_PATH:./data/storage}
+    s3:
+      bucket: ${ORBITCRM_S3_BUCKET:orbitcrm}
+      region: ${ORBITCRM_S3_REGION:ap-south-1}
+      endpoint: ${ORBITCRM_S3_ENDPOINT:}            # set for MinIO / R2
+      access-key: ${ORBITCRM_S3_ACCESS_KEY:}        # empty = default AWS credential chain
+      secret-key: ${ORBITCRM_S3_SECRET_KEY:}
+      path-style: ${ORBITCRM_S3_PATH_STYLE:false}
+  jobs:
+    enabled: ${ORBITCRM_JOBS_ENABLED:true}
+    reminder-interval: PT1M
+  rate-limit:
+    enabled: ${ORBITCRM_RATE_LIMIT_ENABLED:true}
+    authenticated-per-minute: ${ORBITCRM_RATE_LIMIT_USER:600}
+    anonymous-per-minute: ${ORBITCRM_RATE_LIMIT_IP:120}

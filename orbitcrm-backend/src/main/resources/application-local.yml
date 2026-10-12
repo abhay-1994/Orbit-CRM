@@ -1,0 +1,17 @@
+# Local development profile (mvn spring-boot:run -Dspring-boot.run.profiles=local).
+# Uses the Mailpit container from docker-compose for outgoing email: http://localhost:8025
+spring:
+  mail:
+    host: localhost
+    port: 1025
+
+orbitcrm:
+  security:
+    refresh-cookie:
+      secure: false
+  mail:
+    log-body: true
+
+logging:
+  level:
+    com.orbitcrm: DEBUG
